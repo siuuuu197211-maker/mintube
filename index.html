@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>MinTube</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1 class="logo">MinTube</h1>
+  </header>
+
+  <div id="search-container">
+    <input id="search" placeholder="검색..." autofocus>
+    <div id="suggestions"></div>
+  </div>
+
+  <h2 class="section-title">지금 인기 영상</h2>
+  <div id="trending"></div>
+
+  <h2 class="section-title" style="display:none;" id="searchTitle">검색 결과</h2>
+  <div id="results"></div>
+
+  <h2 class="section-title" style="display:none;" id="relatedTitle">관련 영상</h2>
+  <div id="related"></div>
+
+  <div id="modal" onclick="closeModal(event)">
+    <iframe id="player" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <button id="backBtn" onclick="history.back()">이전으로</button>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
