@@ -1,3 +1,5 @@
+// js/main.js - 검색 결과 안전 처리 버전
+
 const searchInput = document.getElementById('search');
 const suggestionsDiv = document.getElementById('suggestions');
 const resultsDiv = document.getElementById('results');
@@ -9,7 +11,7 @@ const relatedTitle = document.getElementById('relatedTitle');
 let nextPageToken = '';
 let isLoading = false;
 
-// 추천어는 CORS 문제로 주석 처리
+// 추천어 임시 주석 (CORS 문제)
 // searchInput.addEventListener('input', async () => { ... });
 
 searchInput.addEventListener('keypress', e => {
@@ -30,70 +32,23 @@ async function searchVideos() {
   resultsDiv.innerHTML = '<p style="text-align:center;">검색 중...</p>';
   relatedDiv.innerHTML = '';
   relatedTitle.style.display = 'none';
-  nextPageToken = '';
-  isLoading = false;
 
   const response = await fetchSearch(query);
-  const items = response.items || [];
+  
+  // items가 배열인지 강제 체크
+  let items = [];
+  if (response && Array.isArray(response.items)) {
+    items = response.items;
+  } else {
+    console.warn('items가 배열이 아닙니다:', response);
+  }
 
   resultsDiv.innerHTML = '';
-  items.forEach(item => createVideoCard(item, resultsDiv));
-  if (items.length === 0) resultsDiv.innerHTML = '<p style="text-align:center;">결과가 없습니다</p>';
-
-  // sentinel 다시 붙이기
-  const sentinel = document.createElement('div');
-  sentinel.id = 'sentinel';
-  sentinel.style.height = '60px';
-  resultsDiv.appendChild(sentinel);
-}
-
-async function loadMoreSearchResults() {
-  if (isLoading || !nextPageToken) return;
-  isLoading = true;
-
-  const query = searchInput.value.trim();
-  if (!query) return;
-
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=10&pageToken=${nextPageToken}&key=${API_KEY}`;
-  const response = await fetchSearchMore(url);
-  const items = response.items || [];
-  nextPageToken = response.nextPageToken;
-
-  items.forEach(item => createVideoCard(item, resultsDiv));
-  isLoading = false;
-}
-
-// fetchSearch (처음 15개)
-async function fetchSearch(query) {
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=15&key=${API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) return { items: [], nextPageToken: null };
-  const data = await res.json();
-  return { items: data.items || [], nextPageToken: data.nextPageToken };
-}
-
-// fetchSearchMore (이후 10개)
-async function fetchSearchMore(url) {
-  const res = await fetch(url);
-  if (!res.ok) return { items: [], nextPageToken: null };
-  const data = await res.json();
-  return { items: data.items || [], nextPageToken: data.nextPageToken };
-}
-
-async function fetchTrending() {
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&maxResults=12&regionCode=KR&key=${API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.items || [];
-}
-
-async function fetchRelated(videoId) {
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&relatedToVideoId=${videoId}&type=video&maxResults=8&key=${API_KEY}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.items || [];
+  if (items.length > 0) {
+    items.forEach(item => createVideoCard(item, resultsDiv));
+  } else {
+    resultsDiv.innerHTML = '<p style="text-align:center;">검색 결과가 없습니다</p>';
+  }
 }
 
 async function loadRelated(videoId) {
