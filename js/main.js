@@ -1,4 +1,4 @@
-// js/main.js - 검색 결과 안전 처리 버전
+// js/main.js - 검색 결과 안전 처리 강화 버전
 
 const searchInput = document.getElementById('search');
 const suggestionsDiv = document.getElementById('suggestions');
@@ -11,7 +11,7 @@ const relatedTitle = document.getElementById('relatedTitle');
 let nextPageToken = '';
 let isLoading = false;
 
-// 추천어 임시 주석 (CORS 문제)
+// 추천어 임시 주석
 // searchInput.addEventListener('input', async () => { ... });
 
 searchInput.addEventListener('keypress', e => {
@@ -35,13 +35,22 @@ async function searchVideos() {
 
   const response = await fetchSearch(query);
   
-  // items가 배열인지 강제 체크
   let items = [];
-  if (response && Array.isArray(response.items)) {
-    items = response.items;
-  } else {
-    console.warn('items가 배열이 아닙니다:', response);
+
+  // response가 배열이면 그대로 사용
+  if (Array.isArray(response)) {
+    items = response;
   }
+  // response가 객체이고 items가 배열이면
+  else if (response && Array.isArray(response.items)) {
+    items = response.items;
+  }
+  // response가 객체이고 nextPageToken 등이 있으면
+  else if (response && response.items) {
+    items = response.items || [];
+  }
+
+  console.log('[searchVideos] 실제 items:', items);
 
   resultsDiv.innerHTML = '';
   if (items.length > 0) {
