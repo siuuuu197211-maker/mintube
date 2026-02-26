@@ -1,4 +1,4 @@
-// js/main.js - 완전 안정 버전 (sentinel을 절대 잃지 않게 + 강제 추가)
+// js/main.js - 검색 15개 시작 + 스크롤당 10개 추가
 
 const searchInput = document.getElementById('search');
 const videoGrid = document.getElementById('videoGrid');
@@ -18,23 +18,17 @@ const categoryIds = {
   entertainment: '24'
 };
 
-// sentinel을 **한 번만 만들고 절대 삭제하지 않음**
+// sentinel 안전 생성
 let sentinel = document.getElementById('sentinel');
 if (!sentinel) {
   sentinel = document.createElement('div');
   sentinel.id = 'sentinel';
   sentinel.style.height = '60px';
-  sentinel.style.minHeight = '60px';
-  sentinel.style.background = 'transparent';
   videoGrid.appendChild(sentinel);
-  console.log('[INIT] sentinel 새로 생성됨');
-} else {
-  console.log('[INIT] 기존 sentinel 재사용');
 }
 
 const observer = new IntersectionObserver(entries => {
   if (entries[0].isIntersecting && nextPageToken && !isLoading) {
-    console.log('[Observer] 스크롤 끝 → 추가 로드');
     loadMore();
   }
 }, { threshold: 0.1 });
@@ -50,54 +44,48 @@ document.querySelectorAll('.sidebar li').forEach(li => {
   });
 });
 
-// 검색 엔터
+// 검색
 searchInput.addEventListener('keypress', e => {
   if (e.key === 'Enter') {
     currentQuery = searchInput.value.trim();
     if (currentQuery) {
       currentTitleEl.textContent = `"${currentQuery}" 검색 결과`;
-      clearGridExceptSentinel();
+      // sentinel만 남기고 나머지 삭제
+      Array.from(videoGrid.children).forEach(child => {
+        if (child !== sentinel) videoGrid.removeChild(child);
+      });
       nextPageToken = '';
-      loadMore();
+      loadMore(15); // 처음 검색은 15개
     }
   }
 });
-
-// sentinel만 남기고 나머지 삭제 함수 (안전 버전)
-function clearGridExceptSentinel() {
-  console.log('[clearGrid] sentinel 제외하고 삭제 시작');
-  const children = Array.from(videoGrid.children);
-  children.forEach(child => {
-    if (child !== sentinel) {
-      videoGrid.removeChild(child);
-    }
-  });
-  console.log('[clearGrid] 삭제 완료 - sentinel 유지됨');
-}
 
 // 섹션 로드
 async function loadSection(type) {
   currentCategory = type;
   currentQuery = '';
-  clearGridExceptSentinel();
+  Array.from(videoGrid.children).forEach(child => {
+    if (child !== sentinel) videoGrid.removeChild(child);
+  });
   nextPageToken = '';
   currentTitleEl.textContent = type === 'home' ? '홈' : 
     (Object.keys(categoryIds).find(k => categoryIds[k] === categoryIds[type])?.toUpperCase() || type) + ' 인기 급상승';
-  console.log('[loadSection] 섹션 변경:', type);
-  await loadMore();
+  await loadMore(20); // 홈/카테고리는 처음 20개
 }
 
-// 더 로드 (카드 추가 시 sentinel 앞에만)
-async function loadMore() {
+// 더 로드 (매개변수로 처음 개수 지정 가능)
+async function loadMore(initialCount = 10) {
   if (isLoading) return;
   isLoading = true;
   loadingEl.style.display = 'block';
 
   let url;
+  const maxResults = nextPageToken ? 10 : initialCount; // 처음은 initialCount, 이후는 10개씩
+
   if (currentQuery) {
-    url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=${encodeURIComponent(currentQuery)}&regionCode=KR&pageToken=${nextPageToken}&key=${API_KEY}`;
+    url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=${maxResults}&q=${encodeURIComponent(currentQuery)}&regionCode=KR&pageToken=${nextPageToken}&key=${API_KEY}`;
   } else {
-    url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=20&regionCode=KR&pageToken=${nextPageToken}&key=${API_KEY}`;
+    url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&chart=mostPopular&maxResults=${maxResults}&regionCode=KR&pageToken=${nextPageToken}&key=${API_KEY}`;
     if (currentCategory !== 'home' && categoryIds[currentCategory]) {
       url += `&videoCategoryId=${categoryIds[currentCategory]}`;
     }
@@ -108,33 +96,21 @@ async function loadMore() {
   const { items, nextPageToken: token } = await fetchVideos(url);
   nextPageToken = token;
 
-  console.log('[loadMore] 영상 수:', items.length);
+  console.log('[loadMore] 이번에 로드된 영상:', items.length);
 
-  if (items.length === 0) {
-    const msg = document.createElement('p');
-    msg.style.textAlign = 'center';
-    msg.style.padding = '60px 0';
-    msg.style.color = '#888';
-    msg.textContent = currentQuery ? '검색 결과가 없습니다' : '인기 영상을 불러오지 못했습니다';
-    videoGrid.insertBefore(msg, sentinel);
-  } else {
-    items.forEach(v => {
-      const card = createCard(v);
-      videoGrid.insertBefore(card, sentinel);
-      console.log('[loadMore] 카드 추가:', v.snippet?.title || '제목 없음');
-    });
-  }
+  items.forEach(v => {
+    const card = createCard(v);
+    videoGrid.insertBefore(card, sentinel);
+  });
 
   loadingEl.style.display = 'none';
   isLoading = false;
 
-  // 강제 리프레시
   sentinel.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 // 초기 로드
 window.addEventListener('load', () => {
-  console.log('[INIT] 홈 로드 시작');
   loadSection('home');
 });
 
