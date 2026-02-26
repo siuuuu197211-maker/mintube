@@ -1,5 +1,3 @@
-// js/main.js - 검색 처음 15개 + 스크롤당 10개 추가
-
 const searchInput = document.getElementById('search');
 const suggestionsDiv = document.getElementById('suggestions');
 const resultsDiv = document.getElementById('results');
@@ -11,13 +9,11 @@ const relatedTitle = document.getElementById('relatedTitle');
 let nextPageToken = '';
 let isLoading = false;
 
-// 추천어 부분은 CORS 때문에 주석 처리 (필요하면 나중에 서버사이드로)
+// 추천어는 CORS 문제로 주석 처리
 // searchInput.addEventListener('input', async () => { ... });
 
 searchInput.addEventListener('keypress', e => {
-  if (e.key === 'Enter') {
-    searchVideos();
-  }
+  if (e.key === 'Enter') searchVideos();
 });
 
 window.addEventListener('load', async () => {
@@ -25,20 +21,6 @@ window.addEventListener('load', async () => {
   trendingDiv.innerHTML = '';
   items.forEach(item => createVideoCard(item, trendingDiv));
 });
-
-// 무한 스크롤용 sentinel
-const sentinel = document.createElement('div');
-sentinel.id = 'sentinel';
-sentinel.style.height = '60px';
-resultsDiv.appendChild(sentinel);
-
-const observer = new IntersectionObserver(entries => {
-  if (entries[0].isIntersecting && nextPageToken && !isLoading) {
-    loadMoreSearchResults();
-  }
-}, { threshold: 0.1 });
-
-observer.observe(sentinel);
 
 async function searchVideos() {
   const query = searchInput.value.trim();
@@ -51,14 +33,17 @@ async function searchVideos() {
   nextPageToken = '';
   isLoading = false;
 
-  const items = await fetchSearch(query);
+  const response = await fetchSearch(query);
+  const items = response.items || [];
+
   resultsDiv.innerHTML = '';
   items.forEach(item => createVideoCard(item, resultsDiv));
-  if (items.length === 0) {
-    resultsDiv.innerHTML = '<p style="text-align:center;">결과가 없습니다</p>';
-  }
+  if (items.length === 0) resultsDiv.innerHTML = '<p style="text-align:center;">결과가 없습니다</p>';
 
-  // sentinel 다시 붙이기 (결과 지울 때 사라질 수 있음)
+  // sentinel 다시 붙이기
+  const sentinel = document.createElement('div');
+  sentinel.id = 'sentinel';
+  sentinel.style.height = '60px';
   resultsDiv.appendChild(sentinel);
 }
 
@@ -70,26 +55,27 @@ async function loadMoreSearchResults() {
   if (!query) return;
 
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=10&pageToken=${nextPageToken}&key=${API_KEY}`;
-  const { items, nextPageToken: newToken } = await fetchSearchMore(url);
-  nextPageToken = newToken;
+  const response = await fetchSearchMore(url);
+  const items = response.items || [];
+  nextPageToken = response.nextPageToken;
 
   items.forEach(item => createVideoCard(item, resultsDiv));
   isLoading = false;
 }
 
-// fetchSearch를 수정해서 nextPageToken 반환하게
-async function fetchSearch(query, pageToken = '') {
-  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=15${pageToken ? `&pageToken=${pageToken}` : ''}&key=${API_KEY}`;
+// fetchSearch (처음 15개)
+async function fetchSearch(query) {
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=15&key=${API_KEY}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error('API error');
+  if (!res.ok) return { items: [], nextPageToken: null };
   const data = await res.json();
   return { items: data.items || [], nextPageToken: data.nextPageToken };
 }
 
-// 추가 로드용 함수 (maxResults=10)
+// fetchSearchMore (이후 10개)
 async function fetchSearchMore(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error('API error');
+  if (!res.ok) return { items: [], nextPageToken: null };
   const data = await res.json();
   return { items: data.items || [], nextPageToken: data.nextPageToken };
 }
