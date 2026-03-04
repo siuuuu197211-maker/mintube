@@ -1,4 +1,4 @@
-const API_KEY = 'AIzaSyAdlpN_YA5N7xGaIRLOFRMXCHr15nnCo9U';  // ← 네 키 그대로
+const API_KEY = 'AIzaSyDmE3ubs2TZmFUGeESQI7yCs-l044E2IOU';  // ← 네 키 그대로
 
 async function fetchTrending() {
   try {
